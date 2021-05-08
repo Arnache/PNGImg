@@ -46,6 +46,11 @@ int main() {
     }
   }
 
+  // by default, images are encoded in sRGB space, below we modify this to a linear color space
+  img.has_sRGB = false;
+  img.has_gamma = true;
+  img.decoding_gamma = 1.0 ;
+
   img.saveImage("test.png");
 }
 ```
