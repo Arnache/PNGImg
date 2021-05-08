@@ -4,7 +4,7 @@
 
 ## Disclaimer
 
-PNGImg is provided "as is" with absolutely no guarrantee of any sort.
+PNGImg is provided "as is" with absolutely no guarantee of any sort.
 
 ## Licence
 
@@ -46,7 +46,7 @@ type | allowed channel bit depths
 ..._GRAY| 1, 2, 4, 8, 16
 ..._GRAY_ALPHA | 8, 16
 
-For non-paletted types the bit detph is given by the variable member `bit_depth`.
+For non-paletted types the bit depth is given by the variable member `bit_depth`.
 
 For paletted images, the variable `bit_depth` has another use: the palette and transparency palette can hold up to 256 values. If they are sufficiently small, a value of `bit_depth` of n = 4, 2 or 1 can be provided to indicate that the color index take value at most 2^n - 1 = 15, 3 or 1. (This allows *packing* of 2, 4 or 8 pixels in a single byte; however, and even though libpng allows dealing with such packed raw formats, *we do not support* this feature in PNGImg.)
 
@@ -74,16 +74,16 @@ If you only use images with at most 8 bits per channel (i.e. R,G,B,Gray,Alpha ch
 
 ## Support of text comments
 
-The PNG formal allows for insertion of textual comments in the metadata. The encoding of the string can be either latin-1 or utf-8 and it can be stored/read in/from the png either directly or (/de)compressed by libpng. The combitation of these types are:  
+The PNG formal allows for insertion of textual comments in the metadata. The encoding of the string can be either latin-1 or utf-8 and it can be stored/read in/from the png either raw or (/de)compressed by libpng. The combination of these types are:
 
-libpng constant name | value | chunk type storing it
---- | --- | ---
-PNG_TEXT_COMPRESSION_NONE | -1 | tEXt
-PNG_TEXT_COMPRESSION_zTXt | 0 | zTXt
-PNG_ITXT_COMPRESSION_NONE | 1 | iTXt
-PNG_ITXT_COMPRESSION_zTXt | 2 | iTXt
+libpng constant name | value | charset | compressed? | PNG chunk type
+--- | --- | --- | --- | ---
+PNG_TEXT_COMPRESSION_NONE | -1 | latin-1 | no | tEXt
+PNG_TEXT_COMPRESSION_zTXt | 0 | latin-1 | yes | zTXt
+PNG_ITXT_COMPRESSION_NONE | 1 | utf-8 | no | iTXt
+PNG_ITXT_COMPRESSION_zTXt | 2 | utf-8 | yes | iTXt
 
-PNGImg supports load/save of those comments, they are stored in the variable member `text` a `vector` of `pngText`, the latter being an imitation of png_text but easier to use.
+PNGImg supports load/save of those comments, they are stored in the variable member `text`, a `vector<pngText>`, where `pngText` is a structure that imitates libpng's `png_text` but is, I hope, easier to use.
 
 ## Assumptions
 
@@ -91,6 +91,10 @@ The compilation must be done with at least C++11.
 We assume that on your compiler, a `char` is one byte long (8 bits).
 We do not make an assumption on endianness of the system.
 The code has only been tested on a few systems so there may be other implicit assumptions that the author is not aware of.
+
+### The PNGImg class
+
+This section will hold in a future release a description of the PNGImg class and how to use it.
 
 ### Notes
 
@@ -113,7 +117,7 @@ This manual is in progress, below you'll see a bunch of notes that will eventual
 I have been programming fractal sets drawing short programs in C++ for a while, saving the resulting images into PNGs. I have been using the ability of PNG to hold textual comments in their metadata (tEXT chunks) to also save the algorithm parameters the program was called with (like: where did I zoom on the Mandelbrot set?). 
 
 The C library *libpng* is the canonical way to encode/decode PNG images. However it quite complicated to use. Resource management (avoiding memory leaks, crashes, etc) requires a good deal of attention. C++ has mechanisms for reducing these risks (for instance RAII) and for shorter overall* syntax (via classes).  
-\* Despite the verbosisty induced by the namespace and template mechanisms.
+\* Despite the verbosity induced by the namespace and template mechanisms.
 
 ## Version notes
 
