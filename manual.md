@@ -46,7 +46,7 @@ type | allowed channel bit depths
 
 For non-paletted types the bit detph is given by the variable member `bit_depth`.
 
-For paletted images, the variable `bit_depth` has another use: the palette and transparency palette can hold up to 256 values. If they are sufficiently small, a value of `bit_depth` of n = 4, 2 or 1 can be provided to indicate that the color index take value at most 2^n - 1 = 15, 3 or 1. This allows packing of several pixels in a single byte. Even though libpng allows dealing with such packed raw formats, *we do not support support* for this feature.
+For paletted images, the variable `bit_depth` has another use: the palette and transparency palette can hold up to 256 values. If they are sufficiently small, a value of `bit_depth` of n = 4, 2 or 1 can be provided to indicate that the color index take value at most 2^n - 1 = 15, 3 or 1. This allows packing of several pixels in a single byte. Even though libpng allows dealing with such packed raw formats, *we do not support support* this feature in PNGImg.
 
 ## Raw format
 
@@ -97,18 +97,14 @@ The code has only been tested on a few systems so there may be other implicit as
 
 This manual is in progress, below you'll see a bunch of notes that will eventually be better organized.
 
-- `data` is not packed: there is at most one channel (or palette entry) per byte, even when bit_depth<1
-- in the case of 16 bits deep channel, `Load()` with fill data using big-endian, but you can decide to save a little-endian encoded dataset, by setting `big_endian` to false just before calling `Save()`
 - Saving:
-  - the user must provide pixel data ordered in the correct way, see the PNG specification for this,
   - the member variables `width`, `height`, `bit_depth`, `color_type`, (also `interlace_type`, `compression_type`, `filter_method`) must be correct, coherent, and in accordance with `data.size()`
   - as a matter of fact, in the current version of PNG (1.2),
      compression type and filter method can only take one value so
      just don't touch them
   - `Save()` will fail (I'm not sure of the exact consequences) if
      the data vector is too small
-- supports load/save of ancillary chunks sRGB, gAMA, tRNS and tEXt
-- --No-- support for zTXt and iTXt yet, but this is planned
+- supports load/save of ancillary chunks sRGB, gAMA, tRNS, tEXt, zTXt and iTXt
 - --No-- planned support for iCCP in the short term
 - --No-- planned support for sPLT, oFFs, pHYs, sCAl, bKGD, tIME, hIST, sBIT
 - since we `#include <png.h>` we get all their #defines, essentially a lot of all-caps constants, which unfortunately cannot be wrapped in a namespace afaik.
