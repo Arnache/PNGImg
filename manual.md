@@ -14,6 +14,8 @@ CC-By-SA Arnaud Chéritat.
 
 The version of PNG has been 1.2 for a long time and is not likely to change in the near future.
 
+The *PNG specification* can be found at [http://www.libpng.org/pub/png/spec/iso/index-object.html](http://www.libpng.org/pub/png/spec/iso/index-object.html)
+
 ## Image type
 
 The current version of PNG has 5 image types:
@@ -46,7 +48,7 @@ type | allowed channel bit depths
 
 For non-paletted types the bit detph is given by the variable member `bit_depth`.
 
-For paletted images, the variable `bit_depth` has another use: the palette and transparency palette can hold up to 256 values. If they are sufficiently small, a value of `bit_depth` of n = 4, 2 or 1 can be provided to indicate that the color index take value at most 2^n - 1 = 15, 3 or 1. (This allows *packing* of 2, 4 or 8 pixels in a single byte; however, and even though libpng supports dealing with such packed raw formats, *we do not support* this feature in PNGImg.)
+For paletted images, the variable `bit_depth` has another use: the palette and transparency palette can hold up to 256 values. If they are sufficiently small, a value of `bit_depth` of n = 4, 2 or 1 can be provided to indicate that the color index take value at most 2^n - 1 = 15, 3 or 1. (This allows *packing* of 2, 4 or 8 pixels in a single byte; however, and even though libpng allows dealing with such packed raw formats, *we do not support* this feature in PNGImg.)
 
 ## Raw format
 
@@ -65,9 +67,6 @@ image type | `bit_depth` | byte layout for one pixel
 ..._GRAY| 16 | GG
 ..._GRAY_ALPHA | 8 | GA
 ..._GRAY_ALPHA | 16 | GGAA
-
-
-the current version of PNG has 5 image types, each with variants determined by a bit depth, whose value can take up to five values depending on the image type. Please refer to the *PNG specification* at [http://www.libpng.org/pub/png/spec/iso/index-object.html](http://www.libpng.org/pub/png/spec/iso/index-object.html) for a description of the raw format.
 
 ## Endianness of 16 bits per channel images
 
