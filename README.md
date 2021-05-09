@@ -4,7 +4,7 @@
 
 *PNGImg* is a simple C++ class for saving/loading png images, with support of textual comments in the metadata.
 
-Its interface basically has function members Load() and a Save() and settings are set via variable members.
+Its interface basically has function members loadImage() and a saveImage() and settings are set via variable members.
 
 There is no image transformation/filtering or whatsoever. The PNG image is decoded to/encoded from a memory buffer\* which is in raw format. *It is the user's task to interpret this raw format according to the PNG specification.*  
 \*: in this implementation, a C++ vector  
