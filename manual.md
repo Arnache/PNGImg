@@ -70,7 +70,7 @@ image type | `bit_depth` | byte layout for one pixel
 
 ## Endianness of 16 bits per channel images
 
-If you only use images with at most 8 bits per channel (i.e. R,G,B,Gray,Alpha channels take values from 0 to at most 255, i.e. encoded on one byte) then you do not need to read this paragraph. Otherwise, if your want to save a 16 bits per channel image, the constructor of PNGImg determines the endianness of your system and stores it in the boolean `PNGImg.big_endian`. The data will be (de/en)coded to/from the memory according to this bool. You are allowed to change its value if you want to invert/enforce an endianness (prior to the call of loadImage() or saveImage(); they will --not-- modify the value of the bool).
+If you only use images with at most 8 bits per channel (i.e. R,G,B,Gray,Alpha channels take values from 0 to at most 255, i.e. encoded on one byte) then you do not need to read this paragraph. Otherwise, if your want to save a 16 bits per channel image, the constructor of PNGImg determines the endianness of your system and stores it in the boolean `PNGImg.big_endian`. The data will be (de/en)coded to/from the memory according to this bool. You are allowed to change its value if you want to invert/enforce an endianness (prior to the call of load() or save(); they will --not-- modify the value of the bool).
 
 ## Support of text comments
 
@@ -92,27 +92,123 @@ We assume that on your compiler, a `char` is one byte long (8 bits).
 We do not make an assumption on endianness of the system.
 The code has only been tested on a few systems so there may be other implicit assumptions that the author is not aware of.
 
-### The PNGImg class
+## The PNGImg class
 
-This section will hold in a future release a description of the PNGImg class and how to use it.
+### Member variables:
 
-### Notes
+#### Image type variables
+
+- `width` and `height`: they are of type png_uint_32, which means unsigned with 32 bits (4 bytes) or -maybe more on some systems but the PNG file format does not allow sizes of 2^32 or more
+- `int color_type`: explained in earlier sections, one of 5 possible types of PNG images
+- `int bit_depth`: explained in earlier sections, should only take values 1, 2, 4, 8 or 16 depending on the color type
+- `int interlace_type`: can take the values PNG_INTERLACE_NONE (default) or PNG_INTERLACE_ADAM7 (see the [PNG specification](http://www.libpng.org/pub/png/spec/iso/index-object.html))
+
+The next two variables were introduced for possible future version of PNG, but as of 2021, they have not yet found a use,\* so *just leave them as they are*.
+
+- `int compression_type` = must be PNG_COMPRESSION_TYPE_DEFAULT, which is its default value anyway
+- `int filter_method` = must be PNG_FILTER_TYPE_DEFAULT, which is its default value anyway
+
+\*: In the MNG file format, `filter_method` can in fact take another value, but PNGImg does not support MNG.
+
+#### Image data related variables
+
+- `std::vector<char> data`: the data will be stored here. When loading the vector is automatically resized to the correct value. When saving it is the user's responsibility to provide a vector that is wide enough.
+- `bool big_endian` (default value: endianness of the system, determined at runtime in the constructor). Endianness of the raw format when `bit_depth==16` for the concerned image types. `load()` and `save()` do not modify this value,  they use it in the concerned case to decode/encode the PNG file into the raw format.
+- `std::vector<png_color> palette` when saving a paletted image, this vector should have an allowed size (i.e. at least 1, at most 2^bit_depth)
+- `bool has_transparent` (default: false). For paletted image, tells whether or not to use the `transparency_palette`. For rgb and gray (without alpha), tells whether or not to use the `transparent_color` below.
+- `std::vector<png_byte> transparency_palette` when saving, the size of this vector should be between 0 and the size of `palette`
+- `png_color_16 transparent_color`
+
+The structures `png_color` and `png_color_16` are defined in `png.h`, as follows:
+
+```c++
+typedef struct png_color_struct
+{
+   png_byte red;
+   png_byte green;
+   png_byte blue;
+} png_color;
+
+typedef struct png_color_16_struct
+{
+   png_byte index;    /* used for palette files */
+   png_uint_16 red;   /* for use in red green blue files */
+   png_uint_16 green;
+   png_uint_16 blue;
+   png_uint_16 gray;  /* for use in grayscale files */
+} png_color_16;
+```
+
+#### Member variables related to supported ancillary chunks
+
+- `bool has_sRGB` (default: true). If true then supersedes gamma and an sRGB chunk will be included in the PNG telling the image format should be . According to the PNG specification we also save a cHRM and a gAMA chunk specific values (1.0/2.2 for gAMA: we ignore `decoding_gamma`), but only for compatibility with old decoders. 
+- `bool has_gamma` (default: false). Saving: if true and if `has_rRGB==false` then a gAMA chunk will be saved with value `1.0/decoding_gamma`. If false then a gAMA chunk will be saved if `has_sRGB` is true (see above). Loading: it will become true if either there was an sRGB chunk, in which case `decoding_gamma` will hold a value close to 2.2 (ignoring the gAMA chunk value even if it is present: this is a consequence of libpng's behaviour), or there was not but there was a gAMA chunk, `decoding_gamma` then holds the inverse of its value.
+- `double decoding_gamma` (default: 1.0). Saving: ignored if `has_sRGB==true`.
+- `std::vector<pngText> text` the comments, in the format described below (text is allowed to be empty)
+
+```c++
+  struct pngText {
+                 // the comments below are copied and adapted from png.h
+   int type = PNG_TEXT_COMPRESSION_NONE; 
+                         /* value:
+ PNG_TEXT_COMPRESSION_NONE (-1): tEXt, none
+ PNG_TEXT_COMPRESSION_zTXt  (0): zTXt, deflate
+ PNG_ITXT_COMPRESSION_NONE  (1): iTXt, none
+ PNG_ITXT_COMPRESSION_zTXt  (2): iTXt, deflate 
+                          */
+   std::string key;      /* keyword, 1-79 character description,
+                            Latin-1 encoded, may contain only printable 
+                            characters (codes 32-126 and 161-255) */
+   std::string text;     /* text, may be an empty string (ie "") encoded
+                            in Latin-1 (tEXt and zTXt)
+                            or in UTF-8 (iTXt) */
+   // for iTXT only:
+   std::string lang;     /* language code, 0-79 ASCII characters*/
+   std::string lang_key; /* keyword translated UTF-8 string, 0 or more
+                            chars */
+  };  
+```
+
+### Member functions
+
+- `int getPixelSize()`:
+Returns the number of bytes taken by each pixel in raw format, according to the image type and bit depht indicated by member variables `color_type` and `bit_depth`. Will return 0 if the pair (color_type,bit_depth) does not take allowed values.
+- `int checks(bool strict_data_size=false)`:
+This convenience function does some checks (but not all possible checks)
+about the coherence of the member variables
+width, height, bit_depth, color_type, interlace_type, 
+compression_type, filter_method, and the data.size().
+More details are given in the comments just before the function definition, in `PNGImg.cc`.
+- `int load(const char* fileName)` and `int load(FILE* file)`:
+load a PNG file and store it in the PNGImg object. In case of failure, returns an error code, on success, returns 0.
+- `int save(const char* fileName)` and `int save(FILE* file)`:
+the opposite of load 😉. In case of failure, returns an error code, on success, returns 0.
+
+Error codes:
+
+- INIT_FAILED=2
+- FILE_OPEN_FAILED=3
+- GET_HEADER_FAILED=4
+- LIBPNG_ERROR=5
+- PALETTE_MISSING=6
+
+
+## Notes
 
 This manual is in progress, below you'll see a bunch of notes that will eventually be better organized.
 
 - Saving:
   - the member variables `width`, `height`, `bit_depth`, `color_type`, (also `interlace_type`, `compression_type`, `filter_method`) must be correct, coherent, and in accordance with `data.size()`
-  - as a matter of fact, in the current version of PNG (1.2),
-     compression type and filter method can only take one value so
-     just don't touch them
-  - `saveImage()` will fail (I'm not sure of the exact consequences) if
+  - `save()` will fail (I'm not sure of the exact consequences) if
      the data vector is too small
 - supports load/save of ancillary chunks sRGB, gAMA, tRNS, tEXt, zTXt and iTXt
+- support of bKGD planned in a future release
 - --No-- planned support for iCCP in the short term
-- --No-- planned support for sPLT, oFFs, pHYs, sCAl, bKGD, tIME, hIST, sBIT
+- --No-- planned support for sPLT, oFFs, pHYs, sCAl, tIME, hIST, sBIT
+- --No-- support of progressive display of image.
 - since we `#include <png.h>` we get all their #defines, essentially a lot of all-caps constants, which unfortunately cannot be wrapped in a namespace afaik.
 
-### Motives
+## Motives
 
 I have been programming fractal sets drawing short programs in C++ for a while, saving the resulting images into PNGs. I have been using the ability of PNG to hold textual comments in their metadata (tEXT chunks) to also save the algorithm parameters the program was called with (like: where did I zoom on the Mandelbrot set?). 
 
@@ -144,6 +240,14 @@ modernized C++ code
 - found why the malloc was not freed: libpng 1.6.0 deprecated the freeing system explained in the doc of 1.4.0, fixed the problem by replacing the malloc by a const_cast'ed ref to the vector 
 - as a nice side effect, there is no more malloc
 
+### v0.43
+
+- changed the names of the load and save functions
+- described the PNGImg class member variables and functions
+- corrected bug in save(const char* filename)
+- corrected std::string(null) in load() (this is illegal, but was called when there are text chunks)
+
 ### future releases:
 
-- deal with a finer error reporting, in particular report non-fatal errors after successful Load() of a non-conforming PNG
+- deal with a finer error reporting, in particular report non-fatal errors after successful load() of a non-conforming PNG
+- support bKGD

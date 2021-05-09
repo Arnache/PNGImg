@@ -1,4 +1,6 @@
-// v0.42 (2021)
+// PNGImg v0.42 (2021)
+// Author: Arnaud Chéritat
+// Licence: CC BY-SA 4.0
 
 #include <png.h> // it itself includes many other C libraries, including stdio
 #include <vector>
@@ -10,7 +12,7 @@ class PNGImg {
 
 public:
  
-  /* nested classes */
+  /*** nested classes ***/
 
   // An imitation of pnt_text but with char* replaced by std::string and
   // with text_length/itxt_length made redundant by text.size() 
@@ -35,7 +37,7 @@ public:
                             chars */
   };  
 
-  /* Constants */
+  /*** Constants ***/
 
   // return values of the load/save functions
   static const int INIT_FAILED=2;
@@ -58,18 +60,20 @@ public:
   , BAD_PALETTE_SIZE = 1 << 7
   ;
 
-  /* Static functions */
+  /*** Static functions ***/
 
+  // a std::find function wrapper for a more readable code
   template<typename T, typename V> // V should be a vector<> of type comparable by == to T
   static bool in(T needle, V haystack) {
     return std::find(haystack.begin(), haystack.end(), needle)!= haystack.end(); 
   }
 
-  /* Variables */
+  /*** Variables ***/
 
   // note that some of the member variables are initialized and some aren't
  
   // required
+
   png_uint_32 width;
   png_uint_32 height;
   int bit_depth;
@@ -81,6 +85,7 @@ public:
   std::vector<char> data; // when saving, this vector is allowed to be bigger than needed
 
   // required for paletted images
+
   std::vector<png_color> palette; // when saving a paletted image, this vector should have an allowed size (i.e. at least 1, at most 2^bit_depth)
   bool has_transparent=false;
     // for paletted image, tells whether or not to use the transparency palette
@@ -89,16 +94,20 @@ public:
   png_color_16 transparent_color;
 
   // required for images having 16 bit per channel
+
   png_uint_16 _one=1;
   bool big_endian = !(1 == *(unsigned char *)&(_one));
   // When C++20 becomes supported enough, we can start setting big_endian in a nicer way
   // bool big_endian = std::endian::native == std::endian::big
 
   // ancillary
+
   bool has_sRGB=true;
   bool has_gamma=false;
-  double decoding_gamma=1.0; // sRGB = approx 2.4
+  double decoding_gamma=1.0; // sRGB = approx 2.2
   std::vector<pngText> text;
+
+  /*** functions ***/
 
   /* default constructor does nothing
    * note that some member variables have default values, some don't
@@ -123,8 +132,10 @@ public:
     filter_method=f;
   }
 
+  /* destructor */
   ~PNGImg() {
   }
+
 
   int getPixelSize() { // 0 means error, i.e the pair
     // (color_type,bit_depth) does not take allowed values 
@@ -233,16 +244,16 @@ public:
     return answer;
   }
  
-  int loadImage(const char* fileName) {
+  int load(const char* fileName) {
     // Open file
     FILE* file=fopen(fileName,"rb");
     if(!file) return(FILE_OPEN_FAILED);
-    int code=loadImage(file);
+    int code=load(file);
     fclose(file);
     return(code);
   }
 
-  int loadImage(FILE* file) {
+  int load(FILE* file) {
     has_sRGB=true;
     has_gamma=false;
     has_transparent=false;
@@ -381,11 +392,19 @@ public:
       for(int i=0; i<num_text; i++) {
         png_text *p2=&text_ptr2[i];
         pngText &t = text[i];
-        t.key = std::string(p2->key);
-        t.text = std::string(p2->text);
+        if(p2->key)
+          t.key = std::string(p2->key);
+        else t.key.resize(0);
+        if(p2->text)
+          t.text = std::string(p2->text);
+        else t.text.resize(0);
         t.type = p2->compression;
-        t.lang = std::string(p2->lang);
-        t.lang_key = std::string(p2->lang_key);
+        if(p2->lang)
+          t.lang = std::string(p2->lang);
+        else t.lang.resize(0);
+        if(p2->lang_key)
+          t.lang_key = std::string(p2->lang_key);
+        else t.lang_key.resize(0);
       }
     }
 //    freeTextPtr(text_ptr2); // no need: png_destroy_read_struct will do it
@@ -397,16 +416,16 @@ public:
     return(0);
   }
 
-  int saveImage(const char* fileName) {
+  int save(const char* fileName) {
     // Open file
     FILE* file=fopen(fileName,"wb");
     if(!file) return(FILE_OPEN_FAILED);
-  
-    return(saveImage(file));
+    int code=save(file);
     fclose(file);
+    return code;
   }
 
-  int saveImage(FILE* file) {
+  int save(FILE* file) {
 
     png_structp save_ptr; 
     png_infop info_ptr;
