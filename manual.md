@@ -70,7 +70,7 @@ image type | `bit_depth` | byte layout for one pixel
 
 ## Endianness of 16 bits per channel images
 
-If you only use images with at most 8 bits per channel (i.e. R,G,B,Gray,Alpha channels take values from 0 to at most 255, i.e. encoded on one byte) then you do not need to read this paragraph. Otherwise, if your want to save a 16 bits per channel image, the constructor of PNGImg determines the endianness of your system and stores it in the boolean `PNGImg.big_endian`. The data will be (de/en)coded to/from the memory according to this bool. You are allowed to change its value if you want to invert/enforce an endianness (prior to the call of Load() or Save(); they will --not-- modify the value of the bool).
+If you only use images with at most 8 bits per channel (i.e. R,G,B,Gray,Alpha channels take values from 0 to at most 255, i.e. encoded on one byte) then you do not need to read this paragraph. Otherwise, if your want to save a 16 bits per channel image, the constructor of PNGImg determines the endianness of your system and stores it in the boolean `PNGImg.big_endian`. The data will be (de/en)coded to/from the memory according to this bool. You are allowed to change its value if you want to invert/enforce an endianness (prior to the call of loadImage() or saveImage(); they will --not-- modify the value of the bool).
 
 ## Support of text comments
 
@@ -105,7 +105,7 @@ This manual is in progress, below you'll see a bunch of notes that will eventual
   - as a matter of fact, in the current version of PNG (1.2),
      compression type and filter method can only take one value so
      just don't touch them
-  - `Save()` will fail (I'm not sure of the exact consequences) if
+  - `saveImage()` will fail (I'm not sure of the exact consequences) if
      the data vector is too small
 - supports load/save of ancillary chunks sRGB, gAMA, tRNS, tEXt, zTXt and iTXt
 - --No-- planned support for iCCP in the short term
