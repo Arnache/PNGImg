@@ -4,11 +4,11 @@
 
 ## Disclaimer
 
-PNGImg is provided "as is" with absolutely no guarantee of any sort.
+PNGImg is provided "as is" with absolutely no guarantee of any sort. In now way the author can be liable for any damage it may induce.
 
 ## Licence
 
-CC-By-SA Arnaud Chéritat.
+CC BY-SA 4.0 Arnaud Chéritat.
 
 ## PNG version
 
@@ -118,6 +118,7 @@ The next two variables were introduced for possible future version of PNG, but a
 - `bool has_transparent` (default: false). For paletted image, tells whether or not to use the `transparency_palette`. For rgb and gray (without alpha), tells whether or not to use the `transparent_color` below.
 - `std::vector<png_byte> transparency_palette` when saving, the size of this vector should be between 0 and the size of `palette`
 - `png_color_16 transparent_color`
+- `png_color_16 background_color`
 
 The structures `png_color` and `png_color_16` are defined in `png.h`, as follows:
 
@@ -141,9 +142,21 @@ typedef struct png_color_16_struct
 
 #### Member variables related to supported ancillary chunks
 
-- `bool has_sRGB` (default: true). If true then supersedes gamma and an sRGB chunk will be included in the PNG telling the image format should be . According to the PNG specification we also save a cHRM and a gAMA chunk specific values (1.0/2.2 for gAMA: we ignore `decoding_gamma`), but only for compatibility with old decoders. 
+- `bool has_sRGB` (default: true). If true then supersedes gamma and an sRGB chunk will be included in the PNG telling the image format should be . According to the PNG specification we also save a cHRM and a gAMA chunk specific values (1.0/2.2 for gAMA: we ignore `decoding_gamma`), but only for compatibility with old decoders.
+- `bool sRGB_intent` (default: PNG_sRGB_INTENT_PERCEPTUAL). Meaningful only if `has_sRGB==true`. If you do not know what to choose, use the default value.
+
+    constant name | int value
+    --- | ---
+    PNG_sRGB_INTENT_PERCEPTUAL | 0
+    PNG_sRGB_INTENT_RELATIVE  | 1
+    PNG_sRGB_INTENT_SATURATION | 2
+    PNG_sRGB_INTENT_ABSOLUTE   | 3
+
 - `bool has_gamma` (default: false). Saving: if true and if `has_rRGB==false` then a gAMA chunk will be saved with value `1.0/decoding_gamma`. If false then a gAMA chunk will be saved if `has_sRGB` is true (see above). Loading: it will become true if either there was an sRGB chunk, in which case `decoding_gamma` will hold a value close to 2.2 (ignoring the gAMA chunk value even if it is present: this is a consequence of libpng's behaviour), or there was not but there was a gAMA chunk, `decoding_gamma` then holds the inverse of its value.
 - `double decoding_gamma` (default: 1.0). Saving: ignored if `has_sRGB==true`.
+- `bool has_background` (default: false). Related to the bKGD chunk. See the [PNG specification](http://www.libpng.org/pub/png/spec/iso/index-object.html).
+- `png_color_16 background_color`: If `has_background==true` then this holds the background color. See above for the definition of `png_color_16`.
+
 - `std::vector<pngText> text` the comments, in the format described below (text is allowed to be empty)
 
 ```c++
@@ -182,9 +195,12 @@ More details are given in the comments just before the function definition, in `
 - `int load(const char* fileName)` and `int load(FILE* file)`:
 load a PNG file and store it in the PNGImg object. In case of failure, returns an error code, on success, returns 0.
 - `int save(const char* fileName)` and `int save(FILE* file)`:
-the opposite of load 😉. In case of failure, returns an error code, on success, returns 0.
+the opposite of load 😉. 
+  - the member variables `width`, `height`, `bit_depth`, `color_type`, (also `interlace_type`, `compression_type`, `filter_method`) must be correct, coherent, and in accordance with `data.size()`
+  - `save()` will fail (I'm not sure of the exact consequences) if the data vector is too small
+  - In case of failure, returns an error code, on success, returns 0.
 
-Error codes:
+Error codes for `load()` and `save()`:
 
 - INIT_FAILED=2
 - FILE_OPEN_FAILED=3
@@ -195,14 +211,6 @@ Error codes:
 
 ## Notes
 
-This manual is in progress, below you'll see a bunch of notes that will eventually be better organized.
-
-- Saving:
-  - the member variables `width`, `height`, `bit_depth`, `color_type`, (also `interlace_type`, `compression_type`, `filter_method`) must be correct, coherent, and in accordance with `data.size()`
-  - `save()` will fail (I'm not sure of the exact consequences) if
-     the data vector is too small
-- supports load/save of ancillary chunks sRGB, gAMA, tRNS, tEXt, zTXt and iTXt
-- support of bKGD planned in a future release
 - --No-- planned support for iCCP in the short term
 - --No-- planned support for sPLT, oFFs, pHYs, sCAl, tIME, hIST, sBIT
 - --No-- support of progressive display of image.
@@ -237,7 +245,7 @@ modernized C++ code
 - added zTXt and iTXt support
 - renamed `compression` to `type` in pngText
 - included description of the raw format
-- found why the malloc was not freed: libpng 1.6.0 deprecated the freeing system explained in the doc of 1.4.0, fixed the problem by replacing the malloc by a const_cast'ed ref to the vector 
+- found why the malloc was not freed: libpng 1.6.0 deprecated the freeing system explained in the doc of 1.4.0, fixed the problem by replacing the malloc by a const_cast'ed ref to the vector
 - as a nice side effect, there is no more malloc
 
 ### v0.43
@@ -247,7 +255,24 @@ modernized C++ code
 - corrected bug in save(const char* filename)
 - corrected std::string(null) in load() (this is illegal, but was called when there are text chunks)
 
+### v0.44
+
+- added support of bKGD
+- support of sRGB is now complete (added `sRGB_intent`) 
+- I forgot to do `has_gamma=true;` in load when a gamma chunk is present; this is now corrected
+- renamed `has_transparent` to `has_tRNS`
+
+### v0.45
+
+- in save and load replaced C-style string by std::string
+- added four helper function to append each of the four types of texts in one line
+- renamed member `text` to `text_list`
+
 ### future releases:
 
 - deal with a finer error reporting, in particular report non-fatal errors after successful load() of a non-conforming PNG
-- support bKGD
+
+### abandoned trails
+
+- wanted: replace FILE* by a C++ equivalent like ifstream  
+problem: libpng is designed to handle a FILE*

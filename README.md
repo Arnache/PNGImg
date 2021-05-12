@@ -6,13 +6,13 @@
 
 Its interface basically has function members load() and a save() and settings are set via variable members.
 
-There is no image transformation/filtering or whatsoever. The PNG image is decoded to/encoded from a memory buffer\* which is in raw format. *It is the user's task to interpret this raw format according to the PNG specification.*  
+There is no image transformation/filtering or whatsoever. The PNG image is decoded to/encoded from a memory buffer\* which is in raw format. *It is the user's task to interpret this raw format according to the PNG specification.* For convenience, we include a description of the raw format in the manual.  
 \*: in this implementation, a C++ vector  
 It is also the user's responsibility to send valid settings and data to PNGImg.
 
 ## Disclaimer
 
-PNGImg is provided "as is" with absolutely no guarrantee of any sort.
+PNGImg is provided "as is" with absolutely no guarrantee of any sort. In now way the author can be liable for any damage it may induce.
 
 ## Example
 

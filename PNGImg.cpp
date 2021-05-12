@@ -1,4 +1,4 @@
-// PNGImg v0.42 (2021)
+// PNGImg v0.45 (2021)
 // Author: Arnaud Chéritat
 // Licence: CC BY-SA 4.0
 
@@ -86,26 +86,32 @@ public:
 
   // required for paletted images
 
-  std::vector<png_color> palette; // when saving a paletted image, this vector should have an allowed size (i.e. at least 1, at most 2^bit_depth)
-  bool has_transparent=false;
+  std::vector<png_color> palette; // when saving a paletted image, this
+    // vector should have an allowed size (i.e. at least 1, at most 2^bit_depth)
+  bool has_tRNS=false;
     // for paletted image, tells whether or not to use the transparency palette
     // for rgb and gray (without alpha), tells whether or not to use the transparent_color
-  std::vector<png_byte> transparency_palette; // when saving, there should be between 0 and the pallette size, elements
+  std::vector<png_byte> transparency_palette; // when saving, there
+    // should be between 0 and the pallette size, elements
   png_color_16 transparent_color;
+
+  bool has_background=false;
+  png_color_16 background_color;
 
   // required for images having 16 bit per channel
 
   png_uint_16 _one=1;
   bool big_endian = !(1 == *(unsigned char *)&(_one));
-  // When C++20 becomes supported enough, we can start setting big_endian in a nicer way
-  // bool big_endian = std::endian::native == std::endian::big
+    // When C++20 becomes supported enough, we can start setting big_endian in a nicer way
+    // bool big_endian = std::endian::native == std::endian::big
 
   // ancillary
 
-  bool has_sRGB=true;
-  bool has_gamma=false;
-  double decoding_gamma=1.0; // sRGB = approx 2.2
-  std::vector<pngText> text;
+  bool has_sRGB = true;
+  int sRGB_intent = PNG_sRGB_INTENT_PERCEPTUAL;
+  bool has_gamma = false;
+  double decoding_gamma = 1.0; // sRGB = approx 2.2
+  std::vector<pngText> text_list;
 
   /*** functions ***/
 
@@ -243,10 +249,62 @@ public:
 
     return answer;
   }
+
+  // **********
+
+  // Convenience functions for inserting text chunks
+  // In the current implementation we perform a copy of the strings
+  // given in parameters.
+  // Would it be useful to [provide also/replace with] a version
+  // with a move instead of a copy?
+
+  // **********
+
+  void addLatin1Text(const std::string &key, const std::string &text) {
+    pngText t;
+    t.type = PNG_TEXT_COMPRESSION_NONE;
+    t.key = key; // copy: this could be optimized? 
+    t.text = text;
+    text_list.push_back(t);
+  }
+
+  void addLatin1TextZ(const std::string &key, const std::string &text) {
+    pngText t;
+    t.type = PNG_TEXT_COMPRESSION_zTXt;
+    t.key = key;
+    t.text = text;
+    text_list.push_back(t);
+  }
+
+  void addUTF8Text(const std::string &key, const std::string &text, const std::string &lang, const std::string &lang_key) {
+    pngText t;
+    t.type = PNG_ITXT_COMPRESSION_NONE;
+    t.key = key;
+    t.text = text;
+    t.lang = lang;
+    t.lang_key = lang_key;
+    text_list.push_back(t);
+  }
+
+  void addUTF8TextZ(const std::string &key, const std::string &text, const std::string &lang, const std::string &lang_key) {
+    pngText t;
+    t.type = PNG_ITXT_COMPRESSION_zTXt;
+    t.key = key;
+    t.text = text;
+    t.lang = lang;
+    t.lang_key = lang_key;
+    text_list.push_back(t);
+  }
  
-  int load(const char* fileName) {
+  // **********
+
+  // Load and save functions
+
+  // **********
+
+  int load(std::string fileName) {
     // Open file
-    FILE* file=fopen(fileName,"rb");
+    FILE* file=fopen(fileName.c_str(),"rb");
     if(!file) return(FILE_OPEN_FAILED);
     int code=load(file);
     fclose(file);
@@ -256,7 +314,8 @@ public:
   int load(FILE* file) {
     has_sRGB=true;
     has_gamma=false;
-    has_transparent=false;
+    has_tRNS=false;
+    has_background=true;
 
     // initialize pointers load_ptr, info_ptr, end_ptr related to
     // libpng's file read procedures
@@ -273,6 +332,7 @@ public:
     int num_palette;
     int srgb_intent;
     double gam;
+    png_color_16p bkgd; // pointer!! (no need to free it)
 
     png_byte *trans_alpha; // libpng does the free
     int num_trans;
@@ -359,26 +419,28 @@ public:
             transparency_palette[i] = trans_alpha[i];
           }
         }  // if not, then there is a problem but we don't report it
-        has_transparent = true;
+        has_tRNS = true;
       }
     }
     else if(color_type==PNG_COLOR_TYPE_RGB) {
       if(png_get_tRNS(load_ptr, info_ptr, NULL, &num_trans, &trans_color)) {
-        has_transparent = true;
+        has_tRNS = true;
         transparent_color = *trans_color;
       }
     }
     else if(color_type==PNG_COLOR_TYPE_GRAY) {
       if(png_get_tRNS(load_ptr, info_ptr, NULL, &num_trans, &trans_color)) {
-        has_transparent = true;
+        has_tRNS = true;
         transparent_color = *trans_color;
       }
     } // note : we don't read tRNS data for the color types where it 
       // is not supposed to appear
 
 
-    if(png_get_sRGB(load_ptr, info_ptr, &srgb_intent)) has_sRGB=true;
-    if(png_get_gAMA(load_ptr, info_ptr, &gam)) decoding_gamma=1/gam;
+    if(png_get_sRGB(load_ptr, info_ptr, &srgb_intent)) { has_sRGB=true; sRGB_intent=srgb_intent;}
+    if(png_get_gAMA(load_ptr, info_ptr, &gam)) { decoding_gamma=1/gam; }
+
+    if(png_get_bKGD(load_ptr, info_ptr, &bkgd)) {has_background = true; background_color=*bkgd; }
     
     png_read_end(load_ptr, end_info);
     
@@ -387,11 +449,11 @@ public:
     // when calling destroy, the data pointed to by text_ptr2 will be removed 
 
     // we deep-copy text_ptr2 into text
-    text.resize(num_text);
+    text_list.resize(num_text);
     if(num_text>0) {
       for(int i=0; i<num_text; i++) {
         png_text *p2=&text_ptr2[i];
-        pngText &t = text[i];
+        pngText &t = text_list[i];
         if(p2->key)
           t.key = std::string(p2->key);
         else t.key.resize(0);
@@ -416,9 +478,9 @@ public:
     return(0);
   }
 
-  int save(const char* fileName) {
+  int save(std::string fileName) {
     // Open file
-    FILE* file=fopen(fileName,"wb");
+    FILE* file=fopen(fileName.c_str(),"wb");
     if(!file) return(FILE_OPEN_FAILED);
     int code=save(file);
     fclose(file);
@@ -429,7 +491,7 @@ public:
 
     png_structp save_ptr; 
     png_infop info_ptr;
-    std::vector<png_text> text_2(text.size());
+    std::vector<png_text> text_2(text_list.size());
 
     int pixel_size,channel_size,channels;
 
@@ -450,24 +512,25 @@ public:
       return(INIT_FAILED);
     };
 
-    if(text.size()>0) {
-      for(size_t i=0; i<text.size(); i++) {
+    if(text_list.size()>0) {
+      for(size_t i=0; i<text_list.size(); i++) {
         // the next fields will not be destroyed by libpng
         // (see libpng's messy doc)
-        text_2[i].compression = text[i].type;
-        text_2[i].key = const_cast<png_charp>(text[i].key.c_str());
-        text_2[i].text = const_cast<png_charp>(text[i].text.c_str());
-        if(text[i].type == PNG_TEXT_COMPRESSION_NONE || text[i].type == PNG_TEXT_COMPRESSION_zTXt) {
-          text_2[i].text_length = text[i].text.size();
+        text_2[i].compression = text_list[i].type;
+        text_2[i].key  = const_cast<png_charp>(text_list[i].key.c_str());
+        text_2[i].text = const_cast<png_charp>(text_list[i].text.c_str());
+        if(text_list[i].type == PNG_TEXT_COMPRESSION_NONE
+        || text_list[i].type == PNG_TEXT_COMPRESSION_zTXt) {
+          text_2[i].text_length = text_list[i].text.size();
           text_2[i].itxt_length = 0;
           text_2[i].lang=nullptr;
           text_2[i].lang_key=nullptr;
         }
         else {
           text_2[i].text_length = 0;
-          text_2[i].itxt_length = text[i].text.size();
-          text_2[i].lang = const_cast<png_charp>(text[i].text.c_str());
-          text_2[i].lang_key = const_cast<png_charp>(text[i].text.c_str());
+          text_2[i].itxt_length = text_list[i].text.size();
+          text_2[i].lang     = const_cast<png_charp>(text_list[i].lang.c_str());
+          text_2[i].lang_key = const_cast<png_charp>(text_list[i].lang_key.c_str());
         }
       }
     }
@@ -491,10 +554,14 @@ public:
                  compression_type, filter_method);
 
     if(has_sRGB) {
-      png_set_sRGB_gAMA_and_cHRM(save_ptr, info_ptr, PNG_sRGB_INTENT_PERCEPTUAL);
+      png_set_sRGB_gAMA_and_cHRM(save_ptr, info_ptr, sRGB_intent);
     } else {
       if(has_gamma)
         png_set_gAMA(save_ptr, info_ptr, 1.0/decoding_gamma);
+    }
+
+    if(has_background) {
+      png_set_bKGD(save_ptr, info_ptr, &background_color);
     }
 
     // If there should be a palette
@@ -503,7 +570,7 @@ public:
       png_set_PLTE(save_ptr, info_ptr, palette.data(), palette.size());
   
     // tRNS chunk
-    if(has_transparent) {
+    if(has_tRNS) {
       if(color_type==PNG_COLOR_TYPE_PALETTE) {
         png_set_tRNS(save_ptr, info_ptr, transparency_palette.data(), transparency_palette.size(), NULL);
       }
@@ -517,9 +584,9 @@ public:
       // is not supposed to appear
 
     // If some text is to be saved
-    if(text.size()>0) {
+    if(text_list.size()>0) {
       // then assign it
-      png_set_text(save_ptr, info_ptr, text_2.data(), text.size());
+      png_set_text(save_ptr, info_ptr, text_2.data(), text_list.size());
     }
 
     if(bit_depth<8) png_set_packing(save_ptr);

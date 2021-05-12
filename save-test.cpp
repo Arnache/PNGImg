@@ -14,7 +14,9 @@ int main() {
   t1.type = PNG_TEXT_COMPRESSION_zTXt;
   t1.key="Comment";
   t1.text="Coucou ;)";
-  img.text.push_back(t1);
+  img.text_list.push_back(t1);
+
+  img.addUTF8TextZ("Attempt", "à é À 🦄", "fr-fr", "Tentative");
 
   img.data.resize(width*height*3);
 
@@ -32,13 +34,16 @@ int main() {
   img.has_sRGB = false;
   img.has_gamma = true;
   img.decoding_gamma = 1.0 ;
+  img.has_background = true;
+  img.background_color.red = 0;
+  img.background_color.green = 0;
+  img.background_color.blue = 0;
 
   std::cout << "PNGImg.validate() returns ";
   int c=img.checks();
   if(c==PNGImg::CHECK_OK) std::cout << "OK";
   else std::cout << "BAD: " << c;
   std::cout << std::endl;
-  std::cout << "PNGImg.has_sRGB = " << (img.has_sRGB ? "true" : "false") << std::endl;
 
   img.save("test.png");
 }
